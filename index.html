@@ -1,1 +1,112 @@
+<script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+<div id="online" style="
+position:fixed;
+top:20px;
+left:20px;
+z-index:20;
+background:#171717;
+padding:20px;
+border-radius:12px;
+color:white;
+font-family:Arial;
+">
 
+<h2>POPPY TAG ONLINE</h2>
+
+<button onclick="createRoom()">CREATE ROOM</button>
+
+<p id="roomCode">Room code: None</p>
+
+<input id="joinCode" placeholder="Enter room code">
+
+<button onclick="joinRoom()">JOIN ROOM</button>
+
+<p id="status">Offline</p>
+
+</div>
+let peer;
+let connection;
+let remotePlayers = {};
+
+function createRoom() {
+  const id = "poppy-" + Math.random().toString(36).slice(2, 8);
+
+  peer = new Peer(id);
+
+  peer.on("open", () => {
+    document.getElementById("roomCode").innerText =
+      "Room code: " + id;
+
+    document.getElementById("status").innerText =
+      "Waiting for players...";
+  });
+
+  peer.on("connection", conn => {
+    connection = conn;
+    setupConnection(conn);
+  });
+}
+
+function joinRoom() {
+  const id = document.getElementById("joinCode").value.trim();
+
+  if (!id) return;
+
+  peer = new Peer();
+
+  peer.on("open", () => {
+    connection = peer.connect(id);
+    setupConnection(connection);
+  });
+}
+
+function setupConnection(conn) {
+  conn.on("open", () => {
+    document.getElementById("status").innerText =
+      "CONNECTED ONLINE!";
+  });
+
+  conn.on("data", data => {
+    updateRemotePlayer(data);
+  });
+}
+
+function updateRemotePlayer(data) {
+  let player = remotePlayers[data.id];
+
+  if (!player) {
+    player = document.createElement("a-entity");
+
+    player.innerHTML = `
+      <a-sphere id="head" radius="0.2" color="red"></a-sphere>
+      <a-sphere id="left" radius="0.13" color="blue"></a-sphere>
+      <a-sphere id="right" radius="0.13" color="blue"></a-sphere>
+    `;
+
+    document.querySelector("a-scene").appendChild(player);
+    remotePlayers[data.id] = player;
+  }
+
+  player.querySelector("#head").setAttribute("position", data.head);
+  player.querySelector("#left").setAttribute("position", data.left);
+  player.querySelector("#right").setAttribute("position", data.right);
+}
+
+setInterval(() => {
+  if (!connection || !connection.open) return;
+
+  const head = new THREE.Vector3();
+  const leftPos = new THREE.Vector3();
+  const rightPos = new THREE.Vector3();
+
+  document.querySelector("a-camera").object3D.getWorldPosition(head);
+  left.object3D.getWorldPosition(leftPos);
+  right.object3D.getWorldPosition(rightPos);
+
+  connection.send({
+    id: "player1",
+    head: head,
+    left: leftPos,
+    right: rightPos
+  });
+}, 50);
